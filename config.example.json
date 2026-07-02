@@ -1,0 +1,18 @@
+{
+  "zotero_api_key": "YOUR_ZOTERO_API_KEY_WITH_WRITE_ACCESS",
+  "zotero_library_id": "YOUR_NUMERIC_USER_ID",
+  "zotero_library_type": "user",
+  "zotero_inbox_collection": "YOUR_INBOX_COLLECTION_KEY",
+  "mailto": "you@example.com",
+  "_note_telegram_inbox": "telegram_inbox 必須 = <live_daemon_dir>/inbox.jsonl(daemon 實際寫入處);不一致時 process_keeps 讀到空檔、keep 靜默失效。",
+  "_note_scraper_paths": "sd_work_dir / paper_scraper_dir 僅在使用 external/paper-scraper(ScienceDirect 機構爬蟲)時需要,一般部署可留佔位或刪除。",
+  "paths": {
+    "digest_dir": "C:/path/to/ObsidianVault/Daily Paper Digest",
+    "telegram_inbox": "C:/path/to/live/telegram-daemon/inbox.jsonl",
+    "state_dir": "C:/path/to/state",
+    "live_scripts_dir": "C:/path/to/live/scripts",
+    "live_daemon_dir": "C:/path/to/live/telegram-daemon",
+    "sd_work_dir": "C:/path/to/sd-scraper/work",
+    "paper_scraper_dir": "C:/path/to/external/paper-scraper"
+  }
+}

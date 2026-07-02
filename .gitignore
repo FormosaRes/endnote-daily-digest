@@ -1,0 +1,24 @@
+# secrets / local config — NEVER commit
+config.json
+**/config.json
+*.token
+.env
+
+# state / logs / caches
+*.pos
+.*.pos
+*.log
+*.log.*
+# daemon runtime data (private messages / queued notifications) — never commit
+inbox.jsonl
+notify-queue.jsonl
+**/inbox.jsonl
+**/notify-queue.jsonl
+__pycache__/
+*.pyc
+*.bak*
+*.tmp
+
+# downloaded content / big files
+pdfs/
+*.pdf

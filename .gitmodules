@@ -1,0 +1,6 @@
+[submodule "external/endnote-mcp"]
+	path = external/endnote-mcp
+	url = https://github.com/gokmengokhan/endnote-mcp
+[submodule "external/paper-scraper"]
+	path = external/paper-scraper
+	url = https://github.com/GAO-pooh/paper-scraper
