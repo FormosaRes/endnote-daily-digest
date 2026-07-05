@@ -14,6 +14,15 @@ Prereqs:
   uv tool install 'notebooklm-py[browser]'   # the `notebooklm` CLI
   notebooklm login                            # one-time Google login (cookies persist)
 
+Auth is self-healing: each run calls ensure_auth() -> `notebooklm auth refresh`
+first, which rotates Google's short-lived *SIDTS/*SIDCC/GAPSTS cookies from the
+~394-day master SID. So a daily run keeps auth alive on its own; you only ever
+need to re-login again near the master expiry or after a Google-forced reset.
+Recovery if `auth refresh` ever fails:
+  notebooklm login                              # interactive browser login, or
+  notebooklm login --browser-cookies chrome     # re-import from logged-in Chrome
+                                                # (needs: uv tool install 'notebooklm-py[browser,cookies]')
+
 Config-driven: paths come from config.json (see config.example.json). No secrets here.
   loader order: $DIGEST_CONFIG -> ./config.json -> ../config.json
 """
@@ -140,6 +149,38 @@ def run(cmd, timeout=180):
     return r.stdout or ""
 
 
+def ensure_auth():
+    """Pre-flight: rotate the short-lived Google auth cookies right before use.
+
+    NotebookLM auth is a Playwright storage_state.json. The master SID cookies
+    live ~394 days, but Google's rotating *SIDTS / *SIDCC / GAPSTS cookies are
+    short-lived; if they go stale the backend bounces the request to
+    accounts.google.com ('Authentication expired'). That is what makes the 08:00
+    cron fail intermittently even though the login is still fundamentally valid.
+    `auth refresh` re-derives the rotating cookies from the master SID and writes
+    them back, so the run that follows uses fresh cookies. Because it derives
+    from the long-lived master, a daily refresh keeps auth alive until the ~394d
+    master expiry (or a Google-forced reset). Returns True if auth is usable."""
+    try:
+        r = subprocess.run([NB_CLI, "auth", "refresh"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=120)
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    if r.stdout:
+        print(r.stdout.rstrip())
+    if r.returncode == 0:
+        return True
+    if r.stderr:
+        print(r.stderr.rstrip())
+    # refresh failed -> confirm whether cookies are truly dead (real re-login needed)
+    try:
+        r2 = subprocess.run([NB_CLI, "auth", "check", "--test"], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=120)
+        return r2.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
 def _enqueue_text(msg):
     """Best-effort Telegram text notice via the daemon queue (used to report a
     podcast failure so an unattended run does not fail silently — see M5)."""
@@ -189,6 +230,8 @@ def main():
 
     mp3 = os.path.join(podcast_dir, "{}_digest.mp3".format(date))
     try:
+        if not ensure_auth():                          # rotate stale cookies before use (see ensure_auth)
+            raise SystemExit("NotebookLM 認證需重新登入:auth refresh 失敗,master SID 可能已過期或被 Google 重置")
         out = run([NB_CLI, "create", "每日文獻 Podcast · {}".format(date)], timeout=180)
         m = UUID_RE.search(out)
         if not m:
@@ -214,8 +257,12 @@ def main():
                 pass
         run([NB_CLI, "download", "audio", mp3, "-n", nb], timeout=300)
     except SystemExit as e:
-        _enqueue_text("🎧 今日 podcast 生成失敗:{}。若為 NotebookLM 登入過期,請在本機跑 "
-                      "notebooklm login 後手動補跑。".format(str(e)[:180]))
+        _enqueue_text("🎧 今日 podcast 生成失敗:{}。\n"
+                      "多數情況是 NotebookLM 短期 cookie 過期——本機跑 "
+                      "<code>notebooklm auth refresh</code> 通常即可修好,再手動補跑 make_podcast.py。\n"
+                      "若 refresh 也失敗(master SID 真的過期),改跑 "
+                      "<code>notebooklm login --browser-cookies chrome</code> 從已登入的 Chrome 重新匯入。"
+                      .format(str(e)[:180]))
         raise
     print("mp3 -> {}".format(mp3))
 
