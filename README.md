@@ -1,4 +1,3 @@
-# 📚 EndNote Daily Digest
 ![EndNote Daily Digest](docs/img/banner.png)
 
 
