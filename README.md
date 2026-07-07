@@ -1,3 +1,5 @@
+![EndNote Daily Digest](docs/img/banner.png)
+
 # 📚 EndNote Daily Digest
 
 > Daily literature radar that turns your **EndNote** reference library into a self-curating knowledge pipeline — discover → read → collect → feed back.
