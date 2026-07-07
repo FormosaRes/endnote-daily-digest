@@ -1,5 +1,7 @@
 # 📚 EndNote Daily Digest
 
+![EndNote Daily Digest](docs/img/banner.png)
+
 > Daily literature radar that turns your **EndNote** reference library into a self-curating knowledge pipeline — discover → read → collect → feed back.
 
 每天依你的 **EndNote** 館藏主軸,自動探索相關新論文,分送到 **Telegram**(手機閱讀)、**Zotero**(新知收件匣 + 自動抓 OA PDF)、**Obsidian**(原子筆記,思考層);你在任一處標「收藏」,隔天就回饋成新的探索種子。執行於 **Claude Code 排程**(每天 08:00)。
