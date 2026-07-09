@@ -1,6 +1,22 @@
+<div align="center">
+
 ![EndNote Daily Digest](docs/img/banner.png)
 
+**自我演化的每日文獻雷達 — v1.0.2 穩健性強化版**
 
+館藏種子探索 · 親和度排序 + 三重去重 · Telegram / Zotero / Obsidian 三路落地 · 中文 Podcast + 原圖影片 · keep 收藏閉環
+
+[![EndNote](https://img.shields.io/badge/EndNote-Literature%20Radar-1f6feb)](https://github.com/gokmengokhan/endnote-mcp)
+[![version](https://img.shields.io/badge/version-1.0.2-brightgreen)](CHANGELOG.md)
+[![python](https://img.shields.io/badge/python-3.x-555)](#-安裝與設定)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-scheduled%2008%3A00-8250df)](https://claude.com/claude-code)
+[![NotebookLM](https://img.shields.io/badge/NotebookLM-中文%20podcast-2ea44f)](docs/podcast.md)
+
+[快速開始](#-開工前需求prerequisites) · [架構](docs/architecture.md) · [輸出格式](#-輸出長什麼樣) · [Podcast / 影片](docs/podcast.md) · [文檔](docs/)
+
+</div>
+
+---
 
 > Daily literature radar that turns your **EndNote** reference library into a self-curating knowledge pipeline — discover → read → collect → feed back.
 
