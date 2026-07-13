@@ -49,6 +49,7 @@
 
 ## ✨ 核心特色
 
+- 🚰 **蓄水池模式(發現/推播解耦)** — 候選先批次 harvest 進 `_reservoir.json`(OpenAlex 免費 + 引用鏈 + Nature-family filter,harvest 時即算好親和度),平常日只 `draw` 撈當天 7 篇、**不打搜尋 API**;水位低(unused < 4)才補水。省 API 額度、省 token(`scripts/reservoir.py`)。
 - 🎯 **館藏錨定探索** — Tier 1 引用鏈 + 作者追蹤(OpenAlex),非泛關鍵字。
 - 🧠 **親和度排序 + 三重去重** — 對 EndNote(語意/BM25)、Zotero(`find_duplicates`)、歷史 log 去重。
 - 📲 **Telegram 精簡推播** — 每天 2 則 HTML 文字超連結,含 publish 日期、加長中文摘要、可點 PDF/原文(格式見 [docs/telegram.md](docs/telegram.md))。
@@ -238,6 +239,7 @@ endnote-daily-digest/
 ├─ digest/
 │   └─ SKILL.md              # Claude Code 排程任務的完整邏輯(每天 5主題各1 + Nature 前緣2 = 7 篇)
 ├─ scripts/
+│   ├─ reservoir.py          # 候選蓄水池:harvest 補水 / draw 撈當天7篇 / add 注入 / status 看水位
 │   ├─ process_keeps.py      # 讀 Telegram「keep N」+ Obsidian status:keep → _kept-seeds + keepers
 │   ├─ backfill_zotero.py    # 批次把歷史推播文章補進 Zotero(Crossref 解析 DOI)
 │   ├─ attach_pdfs.py        # 抓 OA PDF 並以 imported_file 上傳 Zotero

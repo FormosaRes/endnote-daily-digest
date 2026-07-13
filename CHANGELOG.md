@@ -2,6 +2,21 @@
 
 本檔記錄 endnote-daily-digest 的版本變更,對齊 GitHub Releases。格式:最新在上。
 
+## v1.1.0 — 2026-07-13 · 蓄水池模式(發現/推播解耦)
+
+新增候選緩衝池,把「發現」(貴、批次、~每週)與「推播」(便宜、每天)拆開。動機:每日搜尋會快速耗盡搜尋 API 月額度,且對學術文獻沒有必要(晚幾天推無妨)。
+
+### 新功能
+- **`scripts/reservoir.py`** — 四個 subcommand:
+  - `harvest [--theme T] [--window N]` — 用 OpenAlex(免費/無限)關鍵字搜 + `_kept-seeds.md` 及固定窄種子引用鏈補水;前緣走 Nature-family filter。harvest 當下就 enrich(日期/作者/摘要/期刊/OA-pdf)並算好 `affinity`(引用鏈 +3、關鍵字命中 +≤3、高影響期刊 +2、有摘要 +1),去重 vs recommended-log + 現有池子,擋 preprint/dataset 雜訊。
+  - `draw --date D` — 依 affinity→發表日撈 5 主題各 1 + 前緣 2,標 used、寫回池子 + dedup log,>90 天未用自動 expired,某主題見底自動 mini-harvest,吐 JSON。
+  - `add <DOI> --theme T` — 手動注入(月度品質補水的 hand-pick 走這條)。
+  - `status` — 印各主題水位,unused < 4 標 LOW。
+- 池子檔 `<state_dir>/_reservoir.json`(gitignored 的 state);config 讀取沿用 `DIGEST_CONFIG → ./config.json → ../config.json`。
+
+### 行為變更
+- **`digest/SKILL.md`**:每日流程從「10–14 查詢搜尋」改為 Step 3 看 `status`(LOW 才 harvest)、Step 4 `draw` 撈 7 篇、Step 5 只寫中文摘要、Step 6 只補 RIS/PDF。平常日不再呼叫搜尋 MCP;付費搜尋額度只留月初品質補水。
+
 ## v1.0.2 — 2026-07-02 · 穩健性強化(安全 / queue / 影音 pipeline)
 
 對整條 pipeline 六面向複審 + 對抗式驗證,修掉會「靜默壞掉」的問題。無新功能,行為更可靠。
