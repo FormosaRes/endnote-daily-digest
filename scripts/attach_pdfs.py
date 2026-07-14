@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 # Attach OA PDFs to existing Zotero items (in claude mcp collection) that lack a PDF.
 # Uses Zotero Web API full file-upload flow. OA sources: Unpaywall + OpenAlex + Semantic Scholar.
+# For a more robust route ladder (adds PMC/Europe PMC, publisher TDM APIs, %PDF validation,
+# institutional proxy + holdings checks) see the reference submodule external/paper-fetch.
 import json, re, ssl, sys, time, hashlib, urllib.request, urllib.parse, urllib.error
 sys.stdout.reconfigure(encoding="utf-8")
 import os as _os, json as _json

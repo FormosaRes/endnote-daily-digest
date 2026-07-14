@@ -2,6 +2,12 @@
 
 本檔記錄 endnote-daily-digest 的版本變更,對齊 GitHub Releases。格式:最新在上。
 
+## Unreleased · 新增 `paper-fetch` 參考 submodule
+
+### 文檔 / 參考
+- **`external/paper-fetch`** — 新增 [`drpwchen/paper-fetch`](https://github.com/drpwchen/paper-fetch)(MIT)作參考 submodule。這是 pipeline「下載端」的完整實作:給 DOI,依合法**路徑階梯**(OA → 出版社 TDM API → 你自己的機構 proxy → resolver 連結)取全文 PDF,並做 `%PDF` magic-byte 驗證與 holdings/授權判斷。與現有 `scripts/attach_pdfs.py`(僅 OA:Unpaywall → OpenAlex → Semantic Scholar → 出版社 pattern)同一套 route-ladder 思路,但更穩健。
+- `external/README.md` 補上該列與用途/授權/免責說明(僅參考指標,非付費牆繞過,不含任何機構存取權)。
+
 ## v1.1.0 — 2026-07-13 · 蓄水池模式(發現/推播解耦)
 
 新增候選緩衝池,把「發現」(貴、批次、~每週)與「推播」(便宜、每天)拆開。動機:每日搜尋會快速耗盡搜尋 API 月額度,且對學術文獻沒有必要(晚幾天推無妨)。
