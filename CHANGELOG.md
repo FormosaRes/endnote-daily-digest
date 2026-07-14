@@ -2,6 +2,21 @@
 
 本檔記錄 endnote-daily-digest 的版本變更,對齊 GitHub Releases。格式:最新在上。
 
+## Unreleased · OA 抓取升級(移植 `paper-fetch` 路徑)+ 新增參考 submodule
+
+### 新功能 / OA PDF 抓取率
+- **`scripts/attach_pdfs.py`** — `oa_pdf()` 從「單一 best location 逐條試」升級成**候選池 route ladder**,移植自 `paper-fetch` 的 `route_unpaywall`(仍純 stdlib、免金鑰、不碰付費牆):
+  - **遍歷所有 `oa_locations`**(不只 `best_oa_location`),去重後直連 PDF 候選先試、落地頁後試。
+  - **PMC → Europe PMC render 端點**(`europepmc.org/articles/PMCxxxx?pdf=render`)——PMC 落地頁已上 reCAPTCHA 擋 bot,render 端點直接吐 PDF。
+  - **DOI→PMCID(NCBI idconv)兜底**——補抓「人在 PMC、但 Unpaywall 只給落地頁或漏列」的 NIH author manuscript。
+  - **OpenAlex** 除 `pdf_url` 外也收 `landing_page_url`;**Semantic Scholar** 候選同步做 PMC render。
+  - **落地頁 `citation_pdf_url` meta 抓取**(帶 Referer)——涵蓋機構 repository。
+  - 效果:付費牆前的 OA 命中率提升,原本印「✗ 無OA(需校內)」的部分文章現在抓得到。行為對付費牆不變(仍不繞過)。
+
+### 文檔 / 參考
+- **`external/paper-fetch`** — 新增 [`drpwchen/paper-fetch`](https://github.com/drpwchen/paper-fetch)(MIT)作參考 submodule(上述 OA 路徑的來源)。它是 pipeline「下載端」的完整實作:給 DOI,依合法**路徑階梯**(OA → 出版社 TDM API → 你自己的機構 proxy → resolver 連結)取全文 PDF,並做 `%PDF` 驗證與 holdings/授權判斷;層 2–4 需自備金鑰與機構登入,本專案未接入。
+- `external/README.md` 補上該列與用途/授權/免責說明(僅參考指標,非付費牆繞過,不含任何機構存取權)。
+
 ## v1.1.0 — 2026-07-13 · 蓄水池模式(發現/推播解耦)
 
 新增候選緩衝池,把「發現」(貴、批次、~每週)與「推播」(便宜、每天)拆開。動機:每日搜尋會快速耗盡搜尋 API 月額度,且對學術文獻沒有必要(晚幾天推無妨)。

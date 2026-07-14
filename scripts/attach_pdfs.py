@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Attach OA PDFs to existing Zotero items (in claude mcp collection) that lack a PDF.
-# Uses Zotero Web API full file-upload flow. OA sources: Unpaywall + OpenAlex + Semantic Scholar.
+# Uses Zotero Web API full file-upload flow.
+# OA route ladder (all free, no keys): Unpaywall (every oa_location) → OpenAlex → NCBI
+# idconv PMCID → Semantic Scholar → Nature pattern, then landing-page citation_pdf_url meta.
+# PMC landings are rerouted to the Europe PMC render endpoint (PMC now has reCAPTCHA).
+# OA routes ported from the reference submodule external/paper-fetch (drpwchen, MIT); its
+# fuller ladder adds publisher TDM APIs + institutional proxy + holdings checks (needs keys).
 import json, re, ssl, sys, time, hashlib, urllib.request, urllib.parse, urllib.error
 sys.stdout.reconfigure(encoding="utf-8")
 import os as _os, json as _json
@@ -35,46 +40,102 @@ def jget(url, headers=None):
     try: return st,h,json.loads(b.decode("utf-8","replace")) if b else None
     except: return st,h,None
 
-def dl(url):
+def dl(url, referer=None):
     try:
-        st,h,b=raw(url, {"User-Agent":UA,"Accept":"application/pdf,*/*"}, timeout=90)
+        h={"User-Agent":UA,"Accept":"application/pdf,*/*"}
+        if referer: h["Referer"]=referer
+        st,_,b=raw(url, h, timeout=90)
         if st==200 and b[:5]==b"%PDF-": return b
     except Exception: pass
     return None
 
+def _pmc_render(url):
+    # PMC / Europe PMC landing → Europe PMC render endpoint. PMC landing pages now serve a
+    # reCAPTCHA to bots; the render endpoint returns the PDF directly. Non-PMC url → None.
+    if not url: return None
+    low=url.lower()
+    if "ncbi.nlm.nih.gov" in low or "pmc.ncbi" in low or "europepmc.org" in low:
+        m=re.search(r"(PMC\d+)", url, re.I)
+        if m: return f"https://europepmc.org/articles/{m.group(1).upper()}?pdf=render"
+    return None
+
+def _pmcid_render(doi):
+    # DOI → PMCID via NCBI idconv → Europe PMC render. Catches NIH author manuscripts that
+    # are in PMC but Unpaywall only lists as a landing page (or misses). Not found → None.
+    try:
+        q=urllib.parse.urlencode({"ids":doi,"format":"json","tool":"endnote-digest","email":MAIL})
+        st,_,d=jget(f"https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?{q}",{"User-Agent":UA})
+        if st==200 and d:
+            for rec in (d.get("records") or []):
+                pmcid=rec.get("pmcid")
+                if pmcid: return f"https://europepmc.org/articles/{pmcid.upper()}?pdf=render"
+    except Exception: pass
+    return None
+
+def grab_landing(url):
+    # Landing page: itself a PDF? take it. Else scrape <meta name="citation_pdf_url"> (covers
+    # institutional repositories) and fetch that with a Referer. Not a PDF/no meta → None.
+    try:
+        st,h,b=raw(url, {"User-Agent":UA}, timeout=60)
+    except Exception: return None
+    if st==200 and b[:5]==b"%PDF-": return b
+    ct=(h.get("Content-Type") or h.get("content-type") or "").lower()
+    if "html" not in ct: return None
+    m=re.search(r'citation_pdf_url"\s+content="([^"]+)"', b.decode("utf-8","replace"))
+    if not m: return None
+    pdf_url=m.group(1)
+    if pdf_url==url: return None
+    return dl(pdf_url, referer=url)
+
 def oa_pdf(doi):
-    # 1) Unpaywall
+    # Gather candidates from every OA index (deduped, ordered), try direct-PDF URLs first,
+    # then landing pages (citation_pdf_url meta). Cheapest/most-permitted route wins.
+    cands=[]; lands=[]; seen=set()
+    def add_pdf(u,src):
+        if u and u not in seen: seen.add(u); cands.append((u,src))
+    def add_land(u,src):
+        if u and u not in seen: seen.add(u); lands.append((u,src))
+    # 1) Unpaywall — traverse ALL oa_locations (not just best), reroute PMC → Europe PMC render
     try:
         st,_,d=jget(f"https://api.unpaywall.org/v2/{urllib.parse.quote(doi)}?email={MAIL}",{"User-Agent":UA})
         if st==200 and d:
-            loc=d.get("best_oa_location") or {}
-            for u in [loc.get("url_for_pdf")]+[ (l or {}).get("url_for_pdf") for l in (d.get("oa_locations") or [])]:
-                if u:
-                    b=dl(u)
-                    if b: return b,"unpaywall"
+            locs=([d["best_oa_location"]] if d.get("best_oa_location") else [])+(d.get("oa_locations") or [])
+            for loc in locs:
+                if not loc: continue
+                add_pdf(loc.get("url_for_pdf"),"unpaywall")
+                add_pdf(_pmc_render(loc.get("url_for_pdf")),"unpaywall-pmc")
+                add_pdf(_pmc_render(loc.get("url")),"unpaywall-pmc")
+                add_land(loc.get("url"),"unpaywall-landing")
     except Exception: pass
     # 2) OpenAlex
     try:
         st,_,d=jget(f"https://api.openalex.org/works/https://doi.org/{urllib.parse.quote(doi)}?mailto={MAIL}",{"User-Agent":UA})
         if st==200 and d:
-            u=((d.get("best_oa_location") or {}).get("pdf_url")) or ((d.get("primary_location") or {}).get("pdf_url"))
-            if u:
-                b=dl(u)
-                if b: return b,"openalex"
+            for loc in [d.get("best_oa_location"),d.get("primary_location")]:
+                if not loc: continue
+                add_pdf(loc.get("pdf_url"),"openalex")
+                add_pdf(_pmc_render(loc.get("pdf_url")),"openalex-pmc")
+                add_land(loc.get("landing_page_url"),"openalex-landing")
     except Exception: pass
-    # 3) Semantic Scholar
+    # 3) DOI→PMCID idconv render (author manuscripts Unpaywall misses)
+    add_pdf(_pmcid_render(doi),"pmc-idconv")
+    # 4) Semantic Scholar openAccessPdf (independent OA index; complements Unpaywall)
     try:
         st,_,d=jget(f"https://api.semanticscholar.org/graph/v1/paper/DOI:{urllib.parse.quote(doi)}?fields=openAccessPdf",{"User-Agent":UA})
         if st==200 and d and d.get("openAccessPdf"):
             u=d["openAccessPdf"].get("url")
-            if u:
-                b=dl(u)
-                if b: return b,"s2"
+            add_pdf(u,"s2"); add_pdf(_pmc_render(u),"s2-pmc"); add_land(u,"s2-landing")
     except Exception: pass
-    # 4) nature OA pattern
+    # 5) Nature OA pattern
     if doi.lower().startswith("10.1038/"):
-        b=dl(f"https://www.nature.com/articles/{doi.split('/',1)[1]}.pdf")
-        if b: return b,"nature"
+        add_pdf(f"https://www.nature.com/articles/{doi.split('/',1)[1]}.pdf","nature")
+    # try direct-PDF candidates, then landing pages
+    for u,src in cands:
+        b=dl(u)
+        if b: return b,src
+    for u,src in lands:
+        b=grab_landing(u)
+        if b: return b,src
     return None,None
 
 def has_pdf(key):
